@@ -1,0 +1,48 @@
+
+
+{
+  "name": "Captain Arban",
+  "version": "1.0",
+  "manifest_version": 3,
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Captain Arban"
+  },
+  "description": "Télécharge les vidéos YouTube directement depuis la page",
+  "permissions": [
+    "downloads",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://www.youtube.com/*",
+    "https://twitter.com/*",
+    "https://x.com/*",
+    "https://*.x.com/*",
+    "https://*.twitter.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/watch*",
+      "https://twitter.com/*",
+      "https://*.twitter.com/*","https://x.com/*",
+      "https://*.x.com/*"],
+
+      "js": ["content.js"]
+    }
+  ]
+}
+
+
