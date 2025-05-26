@@ -1,5 +1,5 @@
 
-Captain Arban est une extension Google Chrome qui permet de télécharger des données multimédias sur Youtube, et Twitter (X). Lorsqu'elle est active, elle affiche un petit bouton sur les vidéos permettant de les télécharger par un simple clic. ![Capture de l'interface](images/Bouton_Twitter_X.png)
+Captain Arban est une extension Google Chrome qui permet de télécharger des données multimédias sur Youtube, et Twitter (X). Lorsqu'elle est active, elle affiche un petit bouton sur les vidéos permettant de les télécharger par un simple clic.  
 
 Elle est composée d'une partie Front-End (en Javascript), et une partie Back-End (Python-Flask).
 
