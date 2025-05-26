@@ -13,7 +13,6 @@ function queryTabsAsync(queryInfo) {
     });
 }
 
-
 // Fonction d'attente asynchrone (ici 3 secondes)
 function waitFor(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -26,8 +25,9 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         console.error("Contexte d'extension invalide.");
         return;
     }
-    console.log(message.action);
-    console.log(message.videoUrl);
+
+    //console.log(message.action);
+    //console.log(message.videoUrl);
     // Attendre 3 secondes pour laisser le temps de stabiliser l'URL ou la page
     await waitFor(3000);
 
@@ -37,8 +37,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 
         try {
             // Appel à l'API Flask locale qui doit déjà être démarrée (via start_flask.py)
-            console.log("On s'apprête à envoyer une requête au Backend");
-            
+            //console.log("On s'apprête à envoyer une requête au Backend");
             const response = await fetch("http://localhost:5050/download_youtube", {
                 method: "POST",
                 headers: {
@@ -48,13 +47,13 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
                 body: JSON.stringify({ url: message.videoUrl })
             });
             
-            console.log("message.videoUrl=",message.videoUrl);
+            //console.log("message.videoUrl=",message.videoUrl);
             const data = await response.json();
-            console.log("data=",data);
+            //console.log("data=",data);
 
             // Si la réponse du backend est un succès
             if (data.status === 'success') {
-                console.log("Vidéo téléchargée :", data.title);
+                //console.log("Vidéo téléchargée :", data.title);
                 sendResponse({ success: true, title: data.title });
             } else {
                 // Si le backend a retourné une erreur
@@ -70,10 +69,11 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     }
     
     else if (message.action === 'downloadVideotwitter' && message.videoUrl) {
-        console.log("Requête de téléchargement Twitter reçue pour :", message.videoUrl);
-        console.log("message.videoUrl=",message.videoUrl);
-
+        //console.log("Requête de téléchargement Twitter reçue pour :", message.videoUrl);
+        //console.log("message.videoUrl=",message.videoUrl);
+        
         try {
+            /*
             const response = await fetch("http://localhost:5050/download_twitter_video", {
                 method: "POST",
                 headers: {
@@ -102,7 +102,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
                     base64: base64Data
                 });
                 }
-            
+                        
             // Convertir le blob en base64
             const reader = new FileReader();
             console.log("reader=",reader);
@@ -116,18 +116,20 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
             sendBlobToActiveTab(base64Data);
             console.log("fonction sendBlobToActiveTab exécutée");
             };
-            reader.readAsDataURL(blob);
-            /*
+            
+            reader.readAsDataURL(blob); 
+            */
+
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 chrome.tabs.sendMessage(tabs[0].id, { action: "downloadBlob", blob: blob });
                 });
-            */
+            
          }
          catch (error) {
             console.error("Erreur réseau Twitter / backend :", error);
             sendResponse({ success: false, error: "Erreur réseau ou backend Twitter injoignable" });
         }
-    }
+    }  
 
     // Indique à Chrome qu'on utilise sendResponse de manière asynchrone
     return true;

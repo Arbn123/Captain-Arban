@@ -38,14 +38,20 @@ function injectDownloadButton() {
     container.style.position = 'relative';
     container.appendChild(button);
 
+    
+    ////
+
     // Survol : apparition/disparition
     video.addEventListener('mouseenter', () => {
       button.style.opacity = '1';
+      //if (!video.contains(e.relatedTarget)) {
+      //  button.style.opacity = '0';  
     });
     
-    video.addEventListener('mouseleave', () => {
-      button.style.opacity = '0';
-    });  
+    video.addEventListener('mouseleave', (e) => {
+      if (!button.contains(e.relatedTarget)) {
+        button.style.opacity = '0';}
+  });  
     
     /*
     videoElement.addEventListener("mouseleave", () => {
@@ -65,10 +71,11 @@ function injectDownloadButton() {
   }, 100);
 });
     */
+
     // Click → téléchargement
     button.addEventListener('click', () => {
-      //event.stopPropagation();
-      //event.preventDefault();
+      event.stopPropagation();
+      event.preventDefault();
       const videoUrl = window.location.href;
       chrome.runtime.sendMessage({ action: 'downloadVideoYoutube', videoUrl });
     });
@@ -115,7 +122,7 @@ function addDownloadButtonTo(video) {
   button.addEventListener('mouseleave', () => button.style.display = 'none');
   */
 
-  button.addEventListener('click', (event) => {
+  button.addEventListener('click', async (event) => {
     // seul mon bouton réagit au clic, un clic ne mettra pas la vidéo en pause
     event.stopPropagation();
     event.preventDefault();
@@ -127,44 +134,59 @@ function addDownloadButtonTo(video) {
     // Construire l'URL complète à partir de href
     const tweetUrl = tweetLink ? `https://twitter.com${tweetLink.getAttribute('href')}` : window.location.href;
 
-    // 👉 Déclenche immédiatement une fenêtre de téléchargement avec un fichier vide
-    const dummyBlob = new Blob([], { type: 'video/mp4' });
-    const dummyUrl = URL.createObjectURL(dummyBlob);
-    const filename = `${crypto.randomUUID()}.mp4`;
+    try {
 
-    const a = document.createElement("a");
-    a.href = dummyUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(dummyUrl);
+        // Étape 1 : Sélection dossier
+        const dirHandle = await window.showDirectoryPicker();
 
+        // Étape 2 : Demander le nom du fichier
+        const randomName = crypto.randomUUID(); //créer un nom aléatoire pour le fichier vidéo à télécharger 
+        const fileName = prompt("Entrez le nom du fichier (avec extension)", `${randomName}.mp4`);
+        //console.log("filename=",fileName);
+        if (!fileName) return;
+
+        // Étape 3 : Créer le fichier
+        const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
+
+        // Facultatif : feedback dans la console
+        //console.log("Tweet URL:", tweetUrl);
+        //console.log("Fichier sélectionné :", fileHandle.name);
+      
+        const response = await fetch("http://localhost:5050/download_twitter_video", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ url: tweetUrl })
+        })
+        
+        if (!response.ok) {
+            console.error("Erreur lors du téléchargement :", response.statusText);
+            return;
+        }
+        
+        const blob = await response.blob();
+        //console.log("blob=",blob);  
+        // Étape 5 : Écrire le fichier sur le disque
+        const writable = await fileHandle.createWritable();
+        //console.log("writable=",writable);
+        await writable.write(blob);
+        await writable.close();
+
+        }
+
+        
+       catch (err) {
+        console.error("Erreur lors de la sélection du dossier ou du nom de fichier :", err);
+    }
+    
     // Envoi vers background.js
-    chrome.runtime.sendMessage({ action: 'downloadVideotwitter', videoUrl: tweetUrl, filename });
+    chrome.runtime.sendMessage({ action: 'downloadVideotwitter', videoUrl: tweetUrl });
     console.log("tweetUrl=",tweetUrl);
-});
+  }
+  );
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      console.log("on passe à content.js");
-      if (message.action === "downloadBase64") {
-        fetch(message.base64)
-          .then(res => res.blob())
-          .then(blob => {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            const randomName = crypto.randomUUID(); 
-            a.download = `${randomName}.mp4`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-          });
-      }
-      });
-
-}
+    }
 
 function detectTwitterVideos() {
   //console.log("1111111");
@@ -183,4 +205,68 @@ function detectTwitterVideos() {
 setInterval(detectTwitterVideos, 4000);
 
 setTimeout(injectDownloadButton, 3000);
+
+
+
+function injectDownloadButton_short() {
+  console.log("injectDownloadButton_short");
+  if (!window.location.pathname.startsWith('/shorts/')) return;
+  console.log("11111");
+  const video = document.querySelector('video');
+  if (!video) return;
+
+  if (document.getElementById('yt-idm-style-btn-short')) return;
+
+  const button = document.createElement('div');
+  button.id = 'yt-idm-style-btn-short';
+  button.title = 'Télécharger ce Short';
+  button.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" height="24" width="24" fill="white">
+      <path d="M5 20h14v-2H5v2zm7-18L5.33 9h4.34v6h4.66V9h4.34L12 2z"/>
+    </svg>
+  `;
+
+  console.log("222222");
+  Object.assign(button.style, {
+    position: 'absolute',
+    top: '12px',
+    right: '12px',
+    width: '80px',
+    height: '36px',
+    backgroundColor: '#0073e6',
+    borderRadius: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+    cursor: 'pointer',
+    opacity: '0',
+    transition: 'opacity 0.3s ease',
+    zIndex: '1000',
+  });
+
+  const container = video.parentElement;
+  container.style.position = 'relative';
+  container.appendChild(button);
+
+  video.addEventListener('mouseenter', () => { button.style.opacity = '1'; });
+  video.addEventListener('mouseleave', (e) => {
+    if (!button.contains(e.relatedTarget)) button.style.opacity = '0';
+  });
+  console.log("33333");
+  button.addEventListener('mouseenter', () => { button.style.opacity = '1'; });
+  button.addEventListener('mouseleave', (e) => {
+    if (!video.contains(e.relatedTarget)) button.style.opacity = '0';
+  });
+
+  button.addEventListener('click', (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    const videoUrl = window.location.href;
+    chrome.runtime.sendMessage({ action: 'downloadVideoYoutube', videoUrl });
+  });
+}
+
+
+//setTimeout(injectDownloadButton_short, 3000);
 

@@ -17,7 +17,7 @@
     },
     "default_title": "Captain Arban"
   },
-  "description": "Télécharge les vidéos YouTube directement depuis la page",
+  "description": "Télécharge les vidéos YouTube et X directement depuis la page Web",
   "permissions": [
     "downloads",
     "tabs",
