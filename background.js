@@ -18,6 +18,45 @@ function waitFor(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+
+//Bouton clic-droit télécharger cette vidéo
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create({
+    id: "downloadYoutubeVideoRight",
+    title: "Télécharger cette vidéo",
+    contexts: ["video","link", "all"]
+  });
+});
+
+/*
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  console.log("11111111");
+  if (info.menuItemId === "downloadYoutubeVideoRight") { 
+    console.log("2222222");
+    chrome.tabs.sendMessage(tab.id, { action: "getVideoUrl" });
+    console.log("3333");
+    }
+  
+});     */ 
+
+
+chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+  if (message.action === "sendVideoUrl") {
+    
+    const videoUrl = message.videoUrl;
+
+    // Ici tu peux lancer la suite : appel backend, téléchargement, etc.
+    const response = await fetch("http://localhost:5050/download_youtube", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: videoUrl })
+    });
+    console.log("response=",response);
+    }
+});
+
+
+
 // Fonction principale : écoute les messages envoyés par content.js
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     // Vérifie que l'extension est toujours active
@@ -31,7 +70,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     // Attendre 3 secondes pour laisser le temps de stabiliser l'URL ou la page
     await waitFor(3000);
 
-    // Si le message reçu demande un téléchargement
+    // Si le message reçu demande un téléchargement Youtube
     if (message.action === 'downloadVideoYoutube' && message.videoUrl) {
         console.log("Requête de téléchargement reçue pour :", message.videoUrl);
 
@@ -67,68 +106,27 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
             sendResponse({ success: false, error: "Erreur réseau ou backend injoignable" });
         }
     }
-    
-    else if (message.action === 'downloadVideotwitter' && message.videoUrl) {
+    //On n'a pas besoin de partie pour le téléchargement Twitter car ce dernier se produit dans content.js
+    //elseif prend juste en compte l'envoi d'une icone de confirmation du téléchargement Twitter 
+    else if (message.type === 'download_complete') {
         //console.log("Requête de téléchargement Twitter reçue pour :", message.videoUrl);
         //console.log("message.videoUrl=",message.videoUrl);
+        console.log("entrée dans téléchargemeent twitter");
         
-        try {
+        console.log("backgroundchrome.runtime=",chrome.runtime);
+        
+        chrome.notifications.create({
+            type: 'basic',
+            iconUrl: 'icons/icon48.png', // doit être dans ton dossier d’extension
+            title: 'Téléchargement terminé',
+            message: 'La vidéo a été téléchargée avec succès.',
+            priority: 1
+        });
+            
             /*
-            const response = await fetch("http://localhost:5050/download_twitter_video", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ url: message.videoUrl })
-            })
-            
-            
-            if (!response.ok) {
-                console.error("Erreur lors du téléchargement :", response.statusText);
-                return;
-            }
-
-            // Transforme la réponse en blob
-            const blob = await response.blob();
-            console.log("blob=",blob);
-            
-            async function sendBlobToActiveTab(base64Data) {
-                console.log("fonction sendBlobToActiveTab engagée");
-                const tabs = await queryTabsAsync({ active: true, currentWindow: true });
-                if (!tabs.length) return;
-                
-                chrome.tabs.sendMessage(tabs[0].id, {
-                    action: "downloadBase64",
-                    base64: base64Data
-                });
-                }
-                        
-            // Convertir le blob en base64
-            const reader = new FileReader();
-            console.log("reader=",reader);
-            
-            reader.onloadend = () => {
-            console.log("1111111");
-            const base64Data = reader.result; // => data:video/mp4;base64,....
-            //console.log("base64Data=",base64Data);
-            console.log("fonction sendBlobToActiveTab va bientot etre lancée");
-            // Envoi au content.js
-            sendBlobToActiveTab(base64Data);
-            console.log("fonction sendBlobToActiveTab exécutée");
-            };
-            
-            reader.readAsDataURL(blob); 
-            */
-
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 chrome.tabs.sendMessage(tabs[0].id, { action: "downloadBlob", blob: blob });
-                });
-            
-         }
-         catch (error) {
-            console.error("Erreur réseau Twitter / backend :", error);
-            sendResponse({ success: false, error: "Erreur réseau ou backend Twitter injoignable" });
-        }
+                });         */
     }  
 
     // Indique à Chrome qu'on utilise sendResponse de manière asynchrone
