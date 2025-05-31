@@ -1,43 +1,25 @@
 
+//Cette partie s'occupe du téléchargement avec clic-droit
 let lastClickedLink = null;
-// À chaque clic droit sur la page
+// À chaque clic droit sur une icone de videos
 document.addEventListener("contextmenu", (event) => {
   const link = event.target.closest("a");
   if (link) {
-    lastClickedLink = link;  // on garde une référence DOM
+    lastClickedLink = link;  // on capture l element html contenant le lien de la video
+                                    // en forme /watch?v=....
   } else {
     lastClickedLink = null;
   }
-
-  console.log("link.getAttribute(href)=",link.getAttribute("href"));
+  //Contruire le lien complet de la vidéo sur laquelle on a cliqué
   const videoUrl = "https://www.youtube.com" + link.getAttribute("href");
-  console.log("videoUrl=",videoUrl);
-
+  
   // Envoie la source vidéo au background
   chrome.runtime.sendMessage({ action: "sendVideoUrl", videoUrl: videoUrl });
-  
+
 });
 
-/*
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === "getVideoUrl") {
-    console.log("link=",link);
-    console.log("content listener");
-    // Récupère la source de la vidéo (la première vidéo sur la page)
-    const videoUrl = "https://www.youtube.com" + link.getAttribute("href");
 
-    console.log("videoUrl=",videoUrl);
-
-    // Envoie la source vidéo au background
-    chrome.runtime.sendMessage({ action: "sendVideoUrl", videoUrl: src });
-
-    // Optionnel : si tu veux répondre directement ici (mais pas nécessaire si tu envoies un autre message)
-    sendResponse({ videoUrl: src });
-  }
-});
-*/
-
-
+// Fonction qui injecte le bouton "télécharger" sur la vidéo en lecture
 function injectDownloadButton() {
   console.log("Youtube");
   const video = document.querySelector('video');
@@ -118,11 +100,12 @@ function injectDownloadButton() {
   }
 }
 
+
+//Injecte le bouton télécharger à une vidéo X donnée
 function addDownloadButtonTo(video) {
-  //console.log("fonction addDownloadButtonTo enclenchée");
+
   if (video.dataset.arbanHandled) return;
   
-  //console.log("video=",video);
   video.dataset.arbanHandled = "true";
   
   const button = document.createElement('div');
@@ -217,6 +200,7 @@ function addDownloadButtonTo(video) {
   }
   );}
 
+//Parcourt le fil X pour injecter le bouton sur chaque vidéo
 function detectTwitterVideos() {
   if (!window.location.hostname.includes('x.com')) return;
   const twitterVideos = document.querySelectorAll('video');
