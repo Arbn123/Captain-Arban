@@ -1,4 +1,43 @@
 
+let lastClickedLink = null;
+// À chaque clic droit sur la page
+document.addEventListener("contextmenu", (event) => {
+  const link = event.target.closest("a");
+  if (link) {
+    lastClickedLink = link;  // on garde une référence DOM
+  } else {
+    lastClickedLink = null;
+  }
+
+  console.log("link.getAttribute(href)=",link.getAttribute("href"));
+  const videoUrl = "https://www.youtube.com" + link.getAttribute("href");
+  console.log("videoUrl=",videoUrl);
+
+  // Envoie la source vidéo au background
+  chrome.runtime.sendMessage({ action: "sendVideoUrl", videoUrl: videoUrl });
+  
+});
+
+/*
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "getVideoUrl") {
+    console.log("link=",link);
+    console.log("content listener");
+    // Récupère la source de la vidéo (la première vidéo sur la page)
+    const videoUrl = "https://www.youtube.com" + link.getAttribute("href");
+
+    console.log("videoUrl=",videoUrl);
+
+    // Envoie la source vidéo au background
+    chrome.runtime.sendMessage({ action: "sendVideoUrl", videoUrl: src });
+
+    // Optionnel : si tu veux répondre directement ici (mais pas nécessaire si tu envoies un autre message)
+    sendResponse({ videoUrl: src });
+  }
+});
+*/
+
+
 function injectDownloadButton() {
   console.log("Youtube");
   const video = document.querySelector('video');
@@ -38,8 +77,6 @@ function injectDownloadButton() {
     container.style.position = 'relative';
     container.appendChild(button);
 
-    
-    ////
 
     // Survol : apparition/disparition
     video.addEventListener('mouseenter', () => {
@@ -71,7 +108,6 @@ function injectDownloadButton() {
   }, 100);
 });
     */
-
     // Click → téléchargement
     button.addEventListener('click', () => {
       event.stopPropagation();
@@ -81,7 +117,6 @@ function injectDownloadButton() {
     });
   }
 }
-
 
 function addDownloadButtonTo(video) {
   //console.log("fonction addDownloadButtonTo enclenchée");
@@ -133,9 +168,7 @@ function addDownloadButtonTo(video) {
     const tweetLink = tweetElement?.querySelector('a[href*="/status/"]');
     // Construire l'URL complète à partir de href
     const tweetUrl = tweetLink ? `https://twitter.com${tweetLink.getAttribute('href')}` : window.location.href;
-
     try {
-
         // Étape 1 : Sélection dossier
         const dirHandle = await window.showDirectoryPicker();
 
@@ -148,10 +181,7 @@ function addDownloadButtonTo(video) {
         // Étape 3 : Créer le fichier
         const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
 
-        // Facultatif : feedback dans la console
-        //console.log("Tweet URL:", tweetUrl);
-        //console.log("Fichier sélectionné :", fileHandle.name);
-      
+        // Appel au Back-end pour télécharger la vidéo
         const response = await fetch("http://localhost:5050/download_twitter_video", {
             method: "POST",
             headers: {
@@ -166,30 +196,28 @@ function addDownloadButtonTo(video) {
         }
         
         const blob = await response.blob();
-        //console.log("blob=",blob);  
+        
         // Étape 5 : Écrire le fichier sur le disque
         const writable = await fileHandle.createWritable();
-        //console.log("writable=",writable);
         await writable.write(blob);
         await writable.close();
 
+        
+        if (fileHandle) {
+            chrome.runtime.sendMessage({ type: "download_complete_verified", success: true });
         }
 
-        
+        //Envoie au Background pour afficher message de fin
+        chrome.runtime.sendMessage({ type: "download_complete" });
+        }
+
        catch (err) {
         console.error("Erreur lors de la sélection du dossier ou du nom de fichier :", err);
-    }
-    
-    // Envoi vers background.js
-    chrome.runtime.sendMessage({ action: 'downloadVideotwitter', videoUrl: tweetUrl });
-    console.log("tweetUrl=",tweetUrl);
+    } 
   }
-  );
-
-    }
+  );}
 
 function detectTwitterVideos() {
-  //console.log("1111111");
   if (!window.location.hostname.includes('x.com')) return;
   const twitterVideos = document.querySelectorAll('video');
   twitterVideos.forEach(video => {
@@ -268,5 +296,6 @@ function injectDownloadButton_short() {
 }
 
 
-//setTimeout(injectDownloadButton_short, 3000);
+setTimeout(injectDownloadButton_short, 3000);
+
 
