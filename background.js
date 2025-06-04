@@ -56,7 +56,6 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 });
 
 
-
 // Fonction principale : écoute les messages envoyés par content.js
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     // Vérifie que l'extension est toujours active
@@ -122,7 +121,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
             message: 'La vidéo a été téléchargée avec succès.',
             priority: 1
         });
-            
+
             /*
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 chrome.tabs.sendMessage(tabs[0].id, { action: "downloadBlob", blob: blob });
@@ -132,4 +131,3 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     // Indique à Chrome qu'on utilise sendResponse de manière asynchrone
     return true;
 });
-
