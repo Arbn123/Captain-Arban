@@ -10,16 +10,16 @@ document.addEventListener("contextmenu", (event) => {
   } else {
     lastClickedLink = null;
   }
+  
   //Contruire le lien complet de la vidéo sur laquelle on a cliqué
   const videoUrl = "https://www.youtube.com" + link.getAttribute("href");
   
   // Envoie la source vidéo au background
   chrome.runtime.sendMessage({ action: "sendVideoUrl", videoUrl: videoUrl });
-
 });
 
 
-// Fonction qui injecte le bouton "télécharger" sur la vidéo en lecture
+// Fonction qui injecte le bouton "télécharger" sur la vidéo Youtube en lecture
 function injectDownloadButton() {
   console.log("Youtube");
   const video = document.querySelector('video');
@@ -99,7 +99,7 @@ function injectDownloadButton() {
     });
   }
 }
-
+setTimeout(injectDownloadButton, 3000);
 
 //Injecte le bouton télécharger à une vidéo X donnée
 function addDownloadButtonTo(video) {
@@ -211,17 +211,12 @@ function detectTwitterVideos() {
   });
 }
 
-
-
-// Lancer la détection toutes les 2 secondes
+// Lancer la détection toutes les 4 secondes
 setInterval(detectTwitterVideos, 4000);
-
-setTimeout(injectDownloadButton, 3000);
-
 
 
 function injectDownloadButton_short() {
-  console.log("injectDownloadButton_short");
+
   if (!window.location.pathname.startsWith('/shorts/')) return;
   console.log("11111");
   const video = document.querySelector('video');
@@ -279,7 +274,103 @@ function injectDownloadButton_short() {
   });
 }
 
-
 setTimeout(injectDownloadButton_short, 3000);
 
+
+function injectButtonReelsFacebook() {
+  if (!window.location.hostname.includes('facebook')) return;
+
+  const reelDivs = document.querySelectorAll('.x1cy8zhl.x9f619.x78zum5.x1q0g3np.xl56j7k.x6ikm8r.x10wlt62.xsag5q8.xz9dl7a');
+  //console.log("reelDivs=",reelDivs);
+  
+  for (let i = 0; i < reelDivs.length; i++) {
+  const reelDiv = reelDivs[i];
+  //console.log("reelDiv=",reelDiv);
+  //console.log(reelDivs[i].querySelector('div.x9f619.x1n2onr6.x1ja2u2z.x78zum5.xdt5ytf.x193iq5w.xeuugli.x1r8uery.x1iyjqo2.xs83m0k.xsyo7zv.x16hj40l'));
+                                                        //x1ey2m1c x9f619 xds687c x17qophe x10l6tqk x13vifvy x1ypdohk
+  const targetDiv = reelDivs[i].querySelector('div.x9f619.x1n2onr6.x1ja2u2z.x78zum5.xdt5ytf.x193iq5w.xeuugli.x1r8uery.x1iyjqo2.xs83m0k.xsyo7zv.x16hj40l');
+  //console.log("targetDiv=",targetDiv);
+
+  if (!targetDiv || targetDiv.querySelector('.arban-download-btn')) continue;
+
+  const button = document.createElement('button');
+  button.innerText = '⬇ Télécharger';
+  button.className = 'arban-download-btn';
+
+  Object.assign(button.style, {
+    position: 'absolute',
+    top: '0px',
+    left: '10px',
+    zIndex: '9999',
+    padding: '8px 12px',
+    background: '#1877f2',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+  });
+
+  targetDiv.style.position = 'relative';
+  targetDiv.appendChild(button);
+  //console.log("targetDiv apres bouton=",targetDiv); 
+
+    button.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const reelUrl = location.href;
+      const dirHandle = await window.showDirectoryPicker();
+      const randomName = crypto.randomUUID();
+      const fileName = prompt("Nom du fichier (avec extension)", `${randomName}.mp4`);
+      if (!fileName) return;
+
+      const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
+
+      const response = await fetch("http://localhost:5050/download_facebook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: reelUrl })
+      });
+
+      const blob = await response.blob();
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+    }); }
+}
+
+
+setTimeout(injectButtonReelsFacebook, 2000);
+
+
+if (window.location.hostname.includes('facebook')) {
+  //console.log("observer mutation");
+  const observer = new MutationObserver(() => {
+    observer.disconnect(); // Empêche une boucle infinie
+    const button = document.querySelector('.arban-download-btn');
+    if (button) {
+      button.remove();
+    }
+    
+    console.log("Injection du bouton");
+    
+    injectButtonReelsFacebook();
+    console.log("fin fonction injectButtonReelsFacebook");
+
+    // Réactiver l'observation après les modifications DOM
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  });
+
+  console.log("reprise de l'observer initial");
+  
+  // Lancer l'observation initiale
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+  
+}
 
