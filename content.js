@@ -18,12 +18,16 @@ document.addEventListener("contextmenu", (event) => {
   chrome.runtime.sendMessage({ action: "sendVideoUrl", videoUrl: videoUrl });
 });
 
+// Fonction d'attente asynchrone (ici 3 secondes)
+function waitFor(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 // Fonction qui injecte le bouton "télécharger" sur la vidéo Youtube en lecture
 function injectDownloadButton() {
   console.log("Youtube");
   const video = document.querySelector('video');
-  if (!window.location.hostname.includes('youtube.com')) return;
+  if (!location.href.includes('youtube.com/watch')) return;
   
   console.log("La fonction Youtube est enclenchée"); 
   if (video && !document.getElementById('yt-idm-style-btn')) {
@@ -70,7 +74,8 @@ function injectDownloadButton() {
     video.addEventListener('mouseleave', (e) => {
       if (!button.contains(e.relatedTarget)) {
         button.style.opacity = '0';}
-  });  
+  
+      });  
     
     /*
     videoElement.addEventListener("mouseleave", () => {
@@ -102,7 +107,7 @@ function injectDownloadButton() {
 setTimeout(injectDownloadButton, 3000);
 
 //Injecte le bouton télécharger à une vidéo X donnée
-function addDownloadButtonTo(video) {
+function addDownloadButtonToX(video) {
 
   if (video.dataset.arbanHandled) return;
   
@@ -126,6 +131,7 @@ function addDownloadButtonTo(video) {
   button.style.display = 'flex';
 
   const container = video.parentElement;
+  //console.log("container=",container);
   container.style.position = 'relative';
   container.appendChild(button);
   
@@ -139,66 +145,61 @@ function addDownloadButtonTo(video) {
   });
   button.addEventListener('mouseleave', () => button.style.display = 'none');
   */
-
-  button.addEventListener('click', async (event) => {
-    // seul mon bouton réagit au clic, un clic ne mettra pas la vidéo en pause
+  
+    button.addEventListener('click', async (event) => {
     event.stopPropagation();
     event.preventDefault();
-    
+
+    //Ouvrir le picker pour enregistrer la vidéo
+    const randomName = crypto.randomUUID(); // nom aléatoire
+    console.log("randomName=",randomName);
+    const fileHandle = await window.showSaveFilePicker({
+        suggestedName: `${randomName}.mp4`,
+        types: [{
+            description: 'MP4 Video',
+            accept: { 'video/mp4': ['.mp4'] },
+        }]
+    });
+
+    console.log("fileHandle=",fileHandle);
+
     const tweetElement = button.closest('article');
-
-    // On cherche un lien vers le tweet dans ce bloc
     const tweetLink = tweetElement?.querySelector('a[href*="/status/"]');
-    // Construire l'URL complète à partir de href
     const tweetUrl = tweetLink ? `https://twitter.com${tweetLink.getAttribute('href')}` : window.location.href;
+    
     try {
-        // Étape 1 : Sélection dossier
-        const dirHandle = await window.showDirectoryPicker();
-
-        // Étape 2 : Demander le nom du fichier
-        const randomName = crypto.randomUUID(); //créer un nom aléatoire pour le fichier vidéo à télécharger 
-        const fileName = prompt("Entrez le nom du fichier (avec extension)", `${randomName}.mp4`);
-        //console.log("filename=",fileName);
-        if (!fileName) return;
-
-        // Étape 3 : Créer le fichier
-        const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
-
-        // Appel au Back-end pour télécharger la vidéo
+        // Étape 1 : Récupération du contenu vidéo via le backend
         const response = await fetch("http://localhost:5050/download_twitter_video", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({ url: tweetUrl })
-        })
-        
+        });
+        console.log("response=",response);
         if (!response.ok) {
             console.error("Erreur lors du téléchargement :", response.statusText);
             return;
         }
         
         const blob = await response.blob();
-        
-        // Étape 5 : Écrire le fichier sur le disque
+        console.log("blob=",blob);
+
+        // Étape 3 : Écrire le fichier sur le disque
         const writable = await fileHandle.createWritable();
         await writable.write(blob);
         await writable.close();
 
-        
-        if (fileHandle) {
-            chrome.runtime.sendMessage({ type: "download_complete_verified", success: true });
-        }
-
-        //Envoie au Background pour afficher message de fin
+        chrome.runtime.sendMessage({ type: "download_complete_verified", success: true });
         chrome.runtime.sendMessage({ type: "download_complete" });
-        }
 
-       catch (err) {
-        console.error("Erreur lors de la sélection du dossier ou du nom de fichier :", err);
-    } 
+    } catch (err) {
+
+        chrome.runtime.sendMessage({ type: "serveur_eteint", success: true });
+        console.error("Erreur lors du téléchargement ou de l’enregistrement :", err);
+    }
+  });
   }
-  );}
 
 //Parcourt le fil X pour injecter le bouton sur chaque vidéo
 function detectTwitterVideos() {
@@ -206,20 +207,21 @@ function detectTwitterVideos() {
   const twitterVideos = document.querySelectorAll('video');
   twitterVideos.forEach(video => {
     if (!video.parentElement.querySelector('.download-button')) {
-      addDownloadButtonTo(video);  // ✅ Ajouter seulement si pas déjà présent
+      addDownloadButtonToX(video);  // ✅ Ajouter seulement si pas déjà présent
     }
   });
 }
 
 // Lancer la détection toutes les 4 secondes
-setInterval(detectTwitterVideos, 4000);
+setInterval(detectTwitterVideos, 10000);
 
 
-function injectDownloadButton_short() {
-
-  if (!window.location.pathname.startsWith('/shorts/')) return;
-  console.log("11111");
+function injectDownloadButton_short_youtube() {
+  
+  if (!location.href.includes('youtube.com/shorts')) return;
+  console.log("Shorts Youtube");
   const video = document.querySelector('video');
+  console.log("video=",video);
   if (!video) return;
 
   if (document.getElementById('yt-idm-style-btn-short')) return;
@@ -233,7 +235,8 @@ function injectDownloadButton_short() {
     </svg>
   `;
 
-  console.log("222222");
+  console.log("button=",button);
+  
   Object.assign(button.style, {
     position: 'absolute',
     top: '12px',
@@ -274,21 +277,20 @@ function injectDownloadButton_short() {
   });
 }
 
-setTimeout(injectDownloadButton_short, 3000);
+setTimeout(injectDownloadButton_short_youtube, 4000);
 
-
-function injectButtonReelsFacebook() {
-  if (!window.location.hostname.includes('facebook')) return;
+function injectButtonReelsFacebook11() {
+  if (!location.href.includes("facebook.com/reel")) return;
 
   const reelDivs = document.querySelectorAll('.x1cy8zhl.x9f619.x78zum5.x1q0g3np.xl56j7k.x6ikm8r.x10wlt62.xsag5q8.xz9dl7a');
-  //console.log("reelDivs=",reelDivs);
+  console.log("reelDivs=",reelDivs);
   
   for (let i = 0; i < reelDivs.length; i++) {
-  const reelDiv = reelDivs[i];
-  //console.log("reelDiv=",reelDiv);
-  //console.log(reelDivs[i].querySelector('div.x9f619.x1n2onr6.x1ja2u2z.x78zum5.xdt5ytf.x193iq5w.xeuugli.x1r8uery.x1iyjqo2.xs83m0k.xsyo7zv.x16hj40l'));
+  const reelDiv = reelDivs[i];           //div.x9f619.x1n2onr6.x1ja2u2z.x78zum5.xdt5ytf.x193iq5w.xeuugli.x1r8uery.x1iyjqo2.xs83m0k.x1icxu4v.x25sj25
+  console.log("reelDiv=",reelDiv);      //'div.x9f619.x1n2onr6.x1ja2u2z.x78zum5.xdt5ytf.x193iq5w.xeuugli.x1r8uery.x1iyjqo2.xs83m0k.xsyo7zv.x16hj40l'
+  console.log(reelDivs[i].querySelector('div.x9f619.x1n2onr6.x1ja2u2z.x78zum5.xdt5ytf.x193iq5w.xeuugli.x1r8uery.x1iyjqo2.xs83m0k.x1icxu4v.x25sj25'));
                                                         //x1ey2m1c x9f619 xds687c x17qophe x10l6tqk x13vifvy x1ypdohk
-  const targetDiv = reelDivs[i].querySelector('div.x9f619.x1n2onr6.x1ja2u2z.x78zum5.xdt5ytf.x193iq5w.xeuugli.x1r8uery.x1iyjqo2.xs83m0k.xsyo7zv.x16hj40l');
+  const targetDiv = reelDivs[i].querySelector('div.x9f619.x1n2onr6.x1ja2u2z.x78zum5.xdt5ytf.x193iq5w.xeuugli.x1r8uery.x1iyjqo2.xs83m0k.x1icxu4v.x25sj25');
   //console.log("targetDiv=",targetDiv);
 
   if (!targetDiv || targetDiv.querySelector('.arban-download-btn')) continue;
@@ -317,15 +319,20 @@ function injectButtonReelsFacebook() {
     button.addEventListener('click', async (event) => {
       event.preventDefault();
       event.stopPropagation();
+      
+      //Ouvrir le picker pour enregistrer la vidéo
+      const randomName = crypto.randomUUID(); // nom aléatoire
+      console.log("randomName=",randomName);
+      const fileHandle = await window.showSaveFilePicker({
+          suggestedName: `${randomName}.mp4`,
+          types: [{
+              description: 'MP4 Video',
+              accept: { 'video/mp4': ['.mp4'] },
+          }]
+      });
 
       const reelUrl = location.href;
-      const dirHandle = await window.showDirectoryPicker();
-      const randomName = crypto.randomUUID();
-      const fileName = prompt("Nom du fichier (avec extension)", `${randomName}.mp4`);
-      if (!fileName) return;
-
-      const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
-
+      
       const response = await fetch("http://localhost:5050/download_facebook", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -340,23 +347,98 @@ function injectButtonReelsFacebook() {
 }
 
 
-setTimeout(injectButtonReelsFacebook, 2000);
+function injectButtonReelsFacebook() {
+  if (!location.href.includes("facebook.com/reel")) return;
 
+  //console.log("reelDiv=",reelDiv);      //'div.x9f619.x1n2onr6.x1ja2u2z.x78zum5.xdt5ytf.x193iq5w.xeuugli.x1r8uery.x1iyjqo2.xs83m0k.xsyo7zv.x16hj40l'
+  //console.log(reelDivs[i].querySelector('div.x9f619.x1n2onr6.x1ja2u2z.x78zum5.xdt5ytf.x193iq5w.xeuugli.x1r8uery.x1iyjqo2.xs83m0k.x1icxu4v.x25sj25'));
+                                            //x1ey2m1c x9f619 xds687c x17qophe x10l6tqk x13vifvy x1ypdohk
+  const targetDiv = document.querySelectorAll('div.x9f619.x1n2onr6.x1ja2u2z.x78zum5.xdt5ytf.x193iq5w.xeuugli.x1r8uery.x1iyjqo2.xs83m0k.x1icxu4v.x25sj25');
+  //console.log("targetDiv=",targetDiv);
 
-if (window.location.hostname.includes('facebook')) {
-  //console.log("observer mutation");
+  //if (!targetDiv || targetDiv.querySelector('.arban-download-btn')) continue;
+
+  const button = document.createElement('button');
+  button.innerText = '⬇ Télécharger';
+  button.className = 'arban-download-btn';
+
+  Object.assign(button.style, {
+    position: 'absolute',
+    top: '0px',
+    left: '10px',
+    zIndex: '9999',
+    padding: '8px 12px',
+    background: '#1877f2',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+  });
+
+  targetDiv[0].style.position = 'relative';
+  targetDiv[0].appendChild(button);
+
+  button.addEventListener('click', async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    //Ouvrir le picker pour enregistrer la vidéo
+    const randomName = crypto.randomUUID(); // nom aléatoire
+    //console.log("randomName=",randomName);
+    const fileHandle = await window.showSaveFilePicker({
+        suggestedName: `${randomName}.mp4`,
+        types: [{
+            description: 'MP4 Video',
+            accept: { 'video/mp4': ['.mp4'] },
+        }]
+    });
+
+    const reelUrl = location.href;
+    console.log("reelUrl=",reelUrl);
+    let response;
+    try{
+      const response = await fetch("http://localhost:5050/download_facebook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: reelUrl })
+      });
+      console.log("response=",response);
+      
+      if (!response.ok) {
+        console.error("Erreur lors du téléchargement :", response.statusText);
+        return;
+      }
+      
+      const blob = await response.blob();
+      console.log("blob=",blob);
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+    }
+
+    catch (error) {
+      alert("Erreur : le serveur n'est pas disponible.\nAssurez-vous que le back-end est lancé.");
+    }
+
+    chrome.runtime.sendMessage({ type: "download_complete" });
+  
+  }); //}
+}
+
+setTimeout(injectButtonReelsFacebook, 3000);
+
+if (location.href.includes("facebook.com/reel")) {
+  
   const observer = new MutationObserver(() => {
+    console.log("observer mutation");
     observer.disconnect(); // Empêche une boucle infinie
     const button = document.querySelector('.arban-download-btn');
     if (button) {
       button.remove();
     }
-    
-    console.log("Injection du bouton");
-    
+    //console.log("Injection du bouton");
     injectButtonReelsFacebook();
-    console.log("fin fonction injectButtonReelsFacebook");
-
+    //console.log("fin fonction injectButtonReelsFacebook");
     // Réactiver l'observation après les modifications DOM
     observer.observe(document.body, {
       childList: true,
@@ -364,13 +446,243 @@ if (window.location.hostname.includes('facebook')) {
     });
   });
 
-  console.log("reprise de l'observer initial");
-  
+  //console.log("reprise de l'observer initial");
   // Lancer l'observation initiale
   observer.observe(document.body, {
     childList: true,
     subtree: true
   });
-  
 }
+
+
+
+function injectButton_Tiktok_Accueil() {
+  console.log("tiktok");
+  if (!location.href.includes("tiktok.com/")) return;
+
+  const reelDivs = document.querySelectorAll('.x1cy8zhl.x9f619.x78zum5.x1q0g3np.xl56j7k.x6ikm8r.x10wlt62.xsag5q8.xz9dl7a');
+  const articles= Array.from(document.querySelectorAll('article'))
+        .filter(article => article.querySelector('*'));
+  const videos= document.querySelectorAll('video');
+  
+  console.log("videos=",videos);
+  
+  for (let i = 0; i < articles.length; i++) {
+    console.log("articles.length=",articles.length);
+    const article = articles[i];
+    
+     // Injection uniquement si article a des enfants (n'est pas une feuille)
+    if (article.children.length === 0) {
+      console.log("Skip article leaf", article);
+      continue; // passe au suivant
+    }
+  
+    const button = document.createElement('button');
+    button.innerText = '⬇ Télécharger';
+    button.className = 'arban-download-btn';
+    
+    Object.assign(button.style, {
+      position: 'absolute',
+      top: '5px',
+      left: '50px',
+      zIndex: '9999',
+      padding: '8px 12px',
+      background: '#1877f2',
+      color: 'white',
+      border: 'none',
+      borderRadius: '6px',
+      cursor: 'pointer',
+    });
+
+    const targetDiv = article.querySelector('div.css-10mp6n3-DivMediaControlsTop.e1yeguby2');
+    console.log("targetDiv=",targetDiv);
+    console.log("button=",button);
+    targetDiv.style.position = 'relative';
+    console.log("article=",article);   
+    targetDiv.appendChild(button);
+    
+
+    button.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      const a=article.querySelector('a[class*="AuthorAnchor"]');
+      
+      const url_author=a.href;
+      const video=article.querySelector('video').parentElement;
+
+      const video_id=video.id
+      const lastPart = video_id.split('-').pop();
+
+      console.log("a=",a);
+      console.log("lastPart=",lastPart);
+      tik_url=a+"/video/"+lastPart;
+      console.log("tik_url=",tik_url);
+      
+      //Ouvrir le picker pour enregistrer la vidéo
+      const randomName = crypto.randomUUID(); // nom aléatoire
+      console.log("randomName=",randomName);
+      const fileHandle = await window.showSaveFilePicker({
+          suggestedName: `${randomName}.mp4`,
+          types: [{
+              description: 'MP4 Video',
+              accept: { 'video/mp4': ['.mp4'] },
+          }]
+      });
+      
+      const response = await fetch("http://localhost:5050/download_tiktok", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: tik_url })
+      });
+
+      const blob = await response.blob();
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+  }); }
+}    
+
+
+function injectButton_Tiktok_profil(){
+  console.log("tiktok@@@")
+  if (!location.href.includes("tiktok.com/@")) return;
+  
+  const conteneur_videos = document.querySelector('div[data-e2e="user-post-item-list"]');
+  //console.log("conteneur_videos=",conteneur_videos);
+  
+  //const les_articles=conteneur_videos.querySelectorAll('a');
+  //console.log("les_articles=",les_articles);
+  //conteneur_videos.forEach((a)=>a.); 
+  
+  const aa=document.querySelector('div.css-1vve6pb-DivSearchBarBackground.e11s2kul25')
+  //console.log("aa=",aa);
+  
+  const isVideoUrl = /^\/@[^/]+\/video\/[^/]+/.test(location.pathname);
+
+  const button = document.createElement('button');
+    button.innerText = '⬇ Télécharger';
+    button.className = 'arban-download-btn';
+    
+    Object.assign(button.style, {
+      position: 'absolute',
+      top: '5px',
+      left: '50px',
+      zIndex: '9999',
+      padding: '8px 12px',
+      background: '#1877f2',
+      color: 'white',
+      border: 'none',
+      borderRadius: '6px',
+      cursor: 'pointer',
+    });
+
+  if (isVideoUrl){
+    //console.log("1111111");
+    const cadre_video=document.querySelectorAll('div[class*="DivVideoContainer"]');
+    //console.log("cadre_video=",cadre_video[0]);
+    
+    id_div=cadre_video[0].querySelector('div[id*="xgwrapper-"]')
+    //console.log("id_div=",id_div);
+    
+    id_video=id_div.id.split('-').pop();
+
+    video=cadre_video[0].querySelector('div[class="css-sq145r"]');
+    //console.log("video=",video);
+    //console.log("button=",button);
+    video.appendChild(button);
+  }
+
+  button.addEventListener('click', async (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+
+    //Ouvrir le picker pour enregistrer la vidéo
+    const randomName = crypto.randomUUID(); // nom aléatoire
+    console.log("randomName=",randomName);
+    const fileHandle = await window.showSaveFilePicker({
+        suggestedName: `${randomName}.mp4`,
+        types: [{
+            description: 'MP4 Video',
+            accept: { 'video/mp4': ['.mp4'] },
+        }]
+    });
+
+    //console.log("fileHandle=",fileHandle);
+    //console.log("id_video=",id_video);
+    //console.log("location.href=",location.href);
+
+    try {
+        // Étape 1 : Récupération du contenu vidéo via le backend
+        const response = await fetch("http://localhost:5050/download_tiktok", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ url: location.href })
+        });
+
+        //console.log("response=",response);
+        if (!response.ok) {
+            console.error("Erreur lors du téléchargement :", response.statusText);
+            return;
+        }
+
+        const blob = await response.blob();
+        //console.log("blob=",blob);
+
+        // Étape 3 : Écrire le fichier sur le disque
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+
+        chrome.runtime.sendMessage({ type: "download_complete_verified", success: true });
+        chrome.runtime.sendMessage({ type: "download_complete" });
+
+    } catch (err) {
+        chrome.runtime.sendMessage({ type: "serveur_eteint", success: true });
+        console.error("Erreur lors du téléchargement ou de l’enregistrement :", err);
+    }
+  });
+
+}
+
+
+//setInterval(injectButton_Tiktok_Accueil, 10000);
+
+if (location.href=="'https://www.tiktok.com/'"){
+    injectButton_Tiktok_Accueil()
+
+}
+else if (location.href.includes("tiktok.com/@")) {
+    setInterval(injectButton_Tiktok_profil,3000)
+}
+
+/*
+
+if (location.href.includes("tiktok.com")) {
+  //const targetNode = document.getElementById("column-list-container");
+  //console.log("targetNode=",targetNode);
+  //if (targetNode) {
+    console.log("observer ciblé sur #column-list-container");
+    const observer = new MutationObserver(() => {
+      console.log("Mutation détectée dans #column-list-container");
+      observer.disconnect(); // Stop temporaire pour éviter boucle infinie
+      
+      // Supprime tous les boutons existants pour éviter les doublons
+      document.querySelectorAll('.arban-download-btn').forEach(btn => btn.remove());
+
+      injectButton_Video_Tiktok();
+
+      // Réactive l’observation
+      observer.observe(document.body, {childList: true, subtree: true});
+    });
+    observer.observe(document.body, {childList: true, subtree: true});
+  //} 
+  //else {
+  //  console.warn("Élément #column-list-container introuvable.");
+  //}
+}
+*/
+
 
