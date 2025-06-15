@@ -1,4 +1,5 @@
 
+
 // S'exécute une fois à l'installation de l'extension
 chrome.runtime.onInstalled.addListener(() => {
     console.log("Extension installée.");
@@ -18,7 +19,7 @@ function waitFor(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-
+/*
 //Bouton clic-droit télécharger cette vidéo
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
@@ -27,6 +28,8 @@ chrome.runtime.onInstalled.addListener(() => {
     contexts: ["video","link", "all"]
   });
 });
+*/
+
 
 /*
 chrome.contextMenus.onClicked.addListener((info, tab) => {
@@ -42,7 +45,6 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   if (message.action === "sendVideoUrl") {
-    
     const videoUrl = message.videoUrl;
 
     // Ici tu peux lancer la suite : appel backend, téléchargement, etc.
@@ -64,8 +66,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         return;
     }
 
-    //console.log(message.action);
-    //console.log(message.videoUrl);
+    
     // Attendre 3 secondes pour laisser le temps de stabiliser l'URL ou la page
     await waitFor(3000);
 
@@ -105,14 +106,15 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
             sendResponse({ success: false, error: "Erreur réseau ou backend injoignable" });
         }
     }
+
     //On n'a pas besoin de partie pour le téléchargement Twitter car ce dernier se produit dans content.js
     //elseif prend juste en compte l'envoi d'une icone de confirmation du téléchargement Twitter 
     else if (message.type === 'download_complete') {
         //console.log("Requête de téléchargement Twitter reçue pour :", message.videoUrl);
         //console.log("message.videoUrl=",message.videoUrl);
-        console.log("entrée dans téléchargemeent twitter");
+        //console.log("entrée dans téléchargemeent twitter");
         
-        console.log("backgroundchrome.runtime=",chrome.runtime);
+        //console.log("backgroundchrome.runtime=",chrome.runtime);
         
         chrome.notifications.create({
             type: 'basic',
@@ -126,8 +128,20 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 chrome.tabs.sendMessage(tabs[0].id, { action: "downloadBlob", blob: blob });
                 });         */
-    }  
+        }
+
+    else if (message.type === 'serveur_eteint')      {
+        chrome.notifications.create({
+            type: 'basic',
+            iconUrl: 'icons/croix_rouge.png', // doit être dans ton dossier d’extension
+            title: 'Le Back-end est éteint',
+            message: 'Il faut allumer le serveur Back-End.',
+            priority: 1
+        });
+    } 
 
     // Indique à Chrome qu'on utilise sendResponse de manière asynchrone
     return true;
 });
+
+
